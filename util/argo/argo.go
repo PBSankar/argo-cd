@@ -31,6 +31,7 @@ import (
 	applicationsv1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/db"
+	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -510,6 +511,30 @@ func validateRepo(ctx context.Context,
 	return conditions, nil
 }
 
+// GetSyncedRefSources creates a map of ref keys (the same as GetRefSources) based on syncRevisions from Application status
+func GetSyncedRefSources(refSources argoappv1.RefTargetRevisionMapping, sources argoappv1.ApplicationSources, syncRevisions []string) (argoappv1.RefTargetRevisionMapping, error) {
+	syncedRefSources := make(argoappv1.RefTargetRevisionMapping)
+	for i, source := range sources {
+		if source.Ref == "" {
+			continue
+		}
+
+		refKey := "$" + source.Ref
+
+		revision := ""
+		if i < len(syncRevisions) {
+			revision = syncRevisions[i]
+		}
+
+		syncedRefSources[refKey] = &argoappv1.RefTarget{
+			Repo:           refSources[refKey].Repo,
+			TargetRevision: revision,
+			Chart:          refSources[refKey].Chart,
+		}
+	}
+	return syncedRefSources, nil
+}
+
 // GetRefSources creates a map of ref keys (from the sources' 'ref' fields) to information about the referenced source.
 // This function also validates the references use allowed characters and does not define the same ref key more than
 // once (which would lead to ambiguous references).
@@ -555,6 +580,25 @@ func GetRefSources(ctx context.Context, sources argoappv1.ApplicationSources, pr
 		}
 	}
 	return refSources, nil
+}
+
+// updateRefSourcesWithResolvedRevisions updates RefSources TargetRevision fields with resolved revisions
+// based on the provided resolvedRevisions map (normalized URL -> commit SHA).
+// This ensures that RefSources always contain resolved revisions when used in cache operations.
+func UpdateRefSourcesWithResolvedRevisions(refSources argoappv1.RefTargetRevisionMapping, resolvedRevisions map[string]string) argoappv1.RefTargetRevisionMapping {
+	if refSources == nil || resolvedRevisions == nil {
+		return refSources
+	}
+	for _, refTarget := range refSources {
+		if refTarget == nil {
+			continue
+		}
+		normalizedURL := git.NormalizeGitURL(refTarget.Repo.Repo)
+		if resolvedRevision, ok := resolvedRevisions[normalizedURL]; ok {
+			refTarget.TargetRevision = resolvedRevision
+		}
+	}
+	return refSources
 }
 
 func validateSourcePermissions(source argoappv1.ApplicationSource, hasMultipleSources bool) []argoappv1.ApplicationCondition {
