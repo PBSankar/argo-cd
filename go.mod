@@ -1,6 +1,6 @@
 module github.com/argoproj/argo-cd/v2
 
-go 1.21.0
+go 1.24.0
 
 require (
 	code.gitea.io/sdk/gitea v0.18.0
@@ -85,7 +85,7 @@ require (
 	golang.org/x/crypto v0.23.0
 	golang.org/x/exp v0.0.0-20230522175609-2e198f4a06a1
 	golang.org/x/net v0.25.0
-	golang.org/x/oauth2 v0.12.0
+	golang.org/x/oauth2 v0.34.0
 	golang.org/x/sync v0.5.0
 	golang.org/x/term v0.20.0
 	golang.org/x/time v0.5.0
@@ -161,8 +161,7 @@ require (
 )
 
 require (
-	cloud.google.com/go/compute v1.23.0 // indirect
-	cloud.google.com/go/compute/metadata v0.2.3 // indirect
+	cloud.google.com/go/compute/metadata v0.3.0 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20210617225240-d185dfc1b5a1 // indirect
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
 	github.com/Azure/go-autorest/autorest v0.11.29 // indirect
