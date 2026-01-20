@@ -459,6 +459,10 @@ const (
 	settingsWebhookAzureDevOpsPasswordKey = "webhook.azuredevops.password"
 	// settingsWebhookMaxPayloadSize is the key for the maximum payload size for webhooks in MB
 	settingsWebhookMaxPayloadSizeMB = "webhook.maxPayloadSizeMB"
+	// settingsWebhookRefreshJitter is the key for the maximum jitter duration for webhook-triggered refreshes
+	settingsWebhookRefreshJitter = "webhook.reconciliation.jitter"
+	// settingsWebhookRefreshJitterThreshold is the key for the minimum number of apps to trigger jitter
+	settingsWebhookRefreshJitterThreshold = "webhook.reconciliation.jitter.threshold"
 	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
 	// settingsResourceTrackingMethodKey is the key to configure tracking method for application resources
@@ -2374,6 +2378,51 @@ func (mgr *SettingsManager) GetMaxWebhookPayloadSize() int64 {
 	}
 
 	return maxPayloadSizeMB * 1024 * 1024
+}
+
+func (mgr *SettingsManager) GetWebhookRefreshJitter() time.Duration {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		log.Warnf("Failed to get config map for webhook refresh jitter: %v", err)
+		return 0
+	}
+
+	if argoCDCM.Data[settingsWebhookRefreshJitter] == "" {
+		return 0
+	}
+
+	jitter, err := timeutil.ParseDuration(argoCDCM.Data[settingsWebhookRefreshJitter])
+	if err != nil {
+		log.Warnf("Failed to parse '%s' key: %v", settingsWebhookRefreshJitter, err)
+		return 0
+	}
+
+	return *jitter
+}
+
+func (mgr *SettingsManager) GetWebhookRefreshJitterThreshold() int {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		log.Warnf("Failed to get config map for webhook refresh jitter threshold: %v", err)
+		return 10
+	}
+
+	if argoCDCM.Data[settingsWebhookRefreshJitterThreshold] == "" {
+		return 10
+	}
+
+	threshold, err := strconv.Atoi(argoCDCM.Data[settingsWebhookRefreshJitterThreshold])
+	if err != nil {
+		log.Warnf("Failed to parse '%s' key: %v", settingsWebhookRefreshJitterThreshold, err)
+		return 10
+	}
+
+	if threshold < 0 {
+		log.Warnf("Invalid '%s' value %d, must be >= 0, using default 10", settingsWebhookRefreshJitterThreshold, threshold)
+		return 10
+	}
+
+	return threshold
 }
 
 // IsImpersonationEnabled returns true if application sync with impersonation feature is enabled in argocd-cm configmap
